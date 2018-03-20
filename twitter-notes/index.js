@@ -26,7 +26,14 @@ module.exports = function () {
     
     // This is the callback url that the user is redirected to a 
     app.get(url.parse(config.oauth_callback).path, function(req, res) {
-      
+      authenticator.authenticate(req, res, function(err) {
+        if (err) {
+          console.log(err);
+          res.sendStatus(401);
+        } else {
+          res.send("Authentication Successful");
+        }
+      });
     });
     
     // Main page handler
@@ -72,6 +79,6 @@ module.exports = function () {
     
     // Start listening for requests
     app.listen(config.port, function() {
-      
+      console.log("Listening on port " + config.port);
     });
 }
