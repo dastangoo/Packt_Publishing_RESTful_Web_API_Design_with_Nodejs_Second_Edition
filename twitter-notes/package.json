@@ -9,6 +9,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "4.13.4"
+    "async": "^2.6.0",
+    "body-parser": "^1.18.2",
+    "cookie-parser": "^1.4.3",
+    "express": "^4.13.4",
+    "mongodb": "^3.0.4",
+    "oauth": "^0.9.15",
+    "querystring": "^0.2.0",
+    "url": "^0.11.0"
   }
 }
