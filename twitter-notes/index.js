@@ -258,36 +258,68 @@ function renderMainPageFromTwitter(req, res) {
   }
   ]);
 }
-// 
+
 // // Show the login page
 app.get('/login', function(req, res) {
   res.render('login');
 });
 // 
 function ensureLoggedIn(req, res, next) {
-
+  if(!req.cookies.access_token || !req.cookies.access_token_secret || !req.cookies.twitter_id) {
+    return res.sendStatus(401);
+  }
+  
+  next();
 }
-// 
+
 // Get notes for a friend
 app.get('/friends/:uid/notes', ensureLoggedIn, function(req, res) {
-
+  storage.getNotes(req.cookies.twitter_id, req.params.uid, function(err, notes) {
+    if (err) {
+      return res.status(500).send(err);
+    }
+    
+    res.send(notes);
+  });
 });
-// 
-// // Add a new note to a friend
+
+// Add a new note to a friend
 app.post('/friends/:uid/notes', ensureLoggedIn, function(req, res) {
-
+  storage.inserNote(req.cookies.twitter_id, req.params.uid, req.body.content, 
+    function(err, note) {
+      if (err) {
+        return res.status(500).error(err);
+      }
+      
+      res.send(note);
+    }
+  );
 });
-// 
-// // Update a note
+
+// Update a note
 app.put('/friends/:uid/notes/:noteid', ensureLoggedIn, function(req, res) {
-
+  var noteId = req.params.noteid;
+  
+  storage.updateNote(req.params.noteid, req.cookies.twitter_id, req.body.content,
+    function(err, note) {
+      if (err) {
+        return res.status(500).error(err);
+      }
+    }
+  );
 });
-// 
-// // Delete a note
+
+// Delete a note
 app.delete('/friends/:uid/notes/:noteid', ensureLoggedIn, function(req, res) {
-
+  storage.deleteNote(req.params.noteid, req.cookies.twitter_id, function(err) {
+    if (err) {
+      return res.status(500).send(err);
+    }
+    
+    res.sendStatus(200);
+  });
 });
-// 
+
 // Serve static files in public directory
 app.use(express.static(__dirname + '/public'));
 

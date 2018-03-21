@@ -12,6 +12,7 @@
     "async": "^2.6.0",
     "body-parser": "^1.18.2",
     "cookie-parser": "^1.4.3",
+    "ejs": "^2.5.7",
     "express": "^4.13.4",
     "mongodb": "^3.0.4",
     "oauth": "^0.9.15",

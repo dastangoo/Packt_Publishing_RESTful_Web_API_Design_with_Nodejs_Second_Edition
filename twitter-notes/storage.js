@@ -30,15 +30,60 @@ module.exports = {
     });
   },
   getNotes: function(ownerId, friendId, cb) {
+    var cursor = database.collection('notes').find({
+      owner_id: ownerId, 
+      friend_id: friendId
+    });
     
+    cursor.toArray(function(err, notes) {
+      if (err) {
+        return cb(err);
+      }
+      
+      cb(null, notes.map(function(note) {
+        return {
+          _id: note._id,
+          content: note.content
+        };
+      }));
+    });
   },
   insertNote: function(ownerId, friendId, content, cb) {
-    
+    database.collection('notes').insert({
+      owner_id: ownerId,
+      friend_id: friendId
+    });
   },
   updateNote: function(noteId, ownerId, content, cb) {
-    
+    databas.collection('notes').updateOne({
+      _id: new ObjectID(noteId),
+      owner_id: ownerId // Used to protect other user's data
+    },
+    {
+      $set: { content: content }
+    },
+    function(err, result) {
+      if (err) {
+        return cb(err);
+      }
+      
+      database.collection('notes').findOne({
+        _id: new ObjectID(noteId)
+      }, function(err, note) {
+        if (err) {
+          return cb(err);
+        }
+        cb(null, {
+          _id: note._id,
+          content: note.content
+        });
+      });
+    });
   },
   deleteNote: function(noteId, ownerId, cb) {
-    
+    database.collection('notes').deleteOne({
+      _id: new ObjectID(noteId),
+      owner_id: ownerId // Used to protect other user's data
+    }, cb);
   }
 };
