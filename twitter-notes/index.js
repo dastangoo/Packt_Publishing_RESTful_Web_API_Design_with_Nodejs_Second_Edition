@@ -20,6 +20,40 @@ app.use(require('cookie-parser')());
 // Parse JSON body and store result in req.body
 app.use(bodyParser.json());
 
+// Main page handler
+app.get('/', function(req, res) {
+  if (!req.cookies.access_token || !req.cookies.access_token_secret) {
+    return res.redirect('/login');
+  }
+  
+  // If the app couldn't connect to the databas, get data from Twitter's API
+  if (!storage.connected()) {
+    return renderMainPageFromTwitter(req, res);
+  }
+  
+  storage.getFriends(req.cookies.twitter_id, function(err, friends) {
+    if (err) {
+      return res.status(500).send(err);
+    }
+    
+    if (friends.length > 0) {
+      console.log("Data loaded from MongoDB");
+      
+      // Sort the friends alphabetically by name
+      friends.sort(function(a, b) {
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      });
+      
+      // Render the main application
+      res.render('index', {
+        friends: friends
+      });
+    } else {
+      renderMainPageFromTwitter(req, res);
+    }
+  });
+});
+
 // Take user to Twitter's login page
 app.get('/auth/twitter', authenticator.redirectToTwitterLoginPage);
 
@@ -155,18 +189,79 @@ app.get('/allfriends', function(req, res) {
   }
   ]);
 });
-// Main page handler
-app.get('/', function(req, res) {
-
-});
 // 
 function renderMainPageFromTwitter(req, res) {
-
+  async.waterfall([
+    // Get friends IDs
+    function(cb) {
+      var cursor = -1;
+      var ids = [];
+      
+      // Get IDs by traversing the cursored collection
+      async.whilst(function() {
+        return cursor != 0;
+      }, function(cb) {
+        authenticator.get('https://api.twitter.com/1.1/friends/ids.json?' + querystring.stringify({ q: 'French' }),
+          req.cookies.access_token, req.cookies.access_token_secret, 
+          function(error, data) {
+            if (error) {
+              return res.status(400).send(error);
+            }
+            data = JSON.parse(data);
+            cursor = data.next_cursor_str;
+            ids = ids.concat(data.ids);
+            
+            cb();
+          });
+    }, function(error) {
+      if (error) {
+        return res.status(400).send(error);
+      }
+      
+      cb(null, ids);
+    });
+  },
+  // Get friend's data
+  function(ids, cb) {
+    // Returns up to 100 ids starting from 100*i
+    var getHundredthIds = function(i) {
+      return ids.slice(100*i, Math.min(ids.length, 100*(i+1)));
+    }
+    
+    var requestsNeeded = Math.ceil(ids.length/100);
+    
+    async.times(requestsNeeded, function(n, next) {
+      var url = 'https://api.twitter.com/1.1/users/lookup.json?' + querystring.stringify({ q: 'French' });
+      authenticator.authenticate(url, 
+        req.cookies.access_token, req.cookies.access_token_secret, 
+        function(error, data) {
+          if (error) {
+            return res.status(400).send(error);
+          }
+          
+          var friends = JSON.parse(data);
+          next(null, friends);
+        });
+    })
+  }, function(error, friends) {
+    // Flatten friends array
+    friends = friends.reduce(function(previousValue, currentValue) {
+      return previousValue.concat(currentValue);
+    }, []);
+    
+    // Sort the friends alphabetically by name
+    friends.sort(function(a, b) {
+      return a.name.toLowerCase().localCompare(b.name.toLowerCase());
+    });
+    
+    res.send(friends);
+  }
+  ]);
 }
 // 
 // // Show the login page
 app.get('/login', function(req, res) {
-
+  res.render('login');
 });
 // 
 function ensureLoggedIn(req, res, next) {
